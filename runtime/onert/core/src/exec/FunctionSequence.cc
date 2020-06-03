@@ -66,12 +66,18 @@ void FunctionSequence::iterate(const std::function<void(IFunction &)> &fn)
 
 void FunctionSequenceForDynamicBackend::run()
 {
-  if (_op_seq.size() != _functions.size())
+  // TODO Refactoring
+  // NOTE We assume that The same index in OpSequence and FunctionSequence are matches
+  //      If it has a sync function, it has one more entry
+  if (_op_seq.size() != _functions.size() && _op_seq.size() + 1 != _functions.size())
     throw std::runtime_error("operation and functions should be mapped one by one");
 
   auto op_seq_iter = _op_seq.begin();
   for (const auto &function : _functions)
   {
+    if (op_seq_iter == _op_seq.end())
+      break;
+
     // set shape of output and allocate memory when needed
     auto &op = _operations_ctx.at(*op_seq_iter);
     op.accept(*_dyn_shape_inferer);

@@ -20,6 +20,8 @@
 #include "CLTimer.h"
 #include <memory>
 #include <backend/IConfig.h>
+#include <arm_compute/runtime/CL/CLScheduler.h>
+#include <util/logging.h>
 
 namespace onert
 {
@@ -37,6 +39,11 @@ public:
   ir::Layout supportLayout(const ir::Operation &node, ir::Layout frontend_layout) override;
   bool supportDynamicTensor() override { return false; }
   bool supportFP16() override { return true; }
+  void sync() const override
+  {
+    arm_compute::CLScheduler::get().sync();
+    VERBOSE_F() << "PROFILING SYNC SYNC SYNC !!!!!!!!!!" << std::endl;
+  }
 
   std::unique_ptr<util::ITimer> timer() override { return std::make_unique<CLTimer>(); }
 };
