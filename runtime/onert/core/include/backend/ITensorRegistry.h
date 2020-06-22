@@ -53,7 +53,8 @@ namespace backend
 /**
  * @brief  TensorRegistry template class for the convenience of backend implementations
  *
- * If a backend uses @c IPortableTensor , and there is no special reason to implement @c ITensorRegistry on your own, you may just use this default implementation.
+ * If a backend uses @c IPortableTensor , and there is no special reason to implement @c
+ * ITensorRegistry on your own, you may just use this default implementation.
  *
  * @tparam T_Tensor Tensor type. Must be a subclass of @c onert::backend::IPortableTensor .
  */
@@ -74,7 +75,8 @@ public:
     auto external_tensor = _external.find(ind);
     if (external_tensor != _external.end())
     {
-      auto external_portable_tensor = std::dynamic_pointer_cast<IPortableTensor>(external_tensor->second);
+      auto external_portable_tensor =
+          std::dynamic_pointer_cast<IPortableTensor>(external_tensor->second);
       if (external_portable_tensor)
         return external_tensor->second;
     }
@@ -89,7 +91,8 @@ public:
     return nullptr;
   }
 
-  void setExternalTensor(const ir::OperandIndex &ind, const std::shared_ptr<IPortableTensor> &tensor)
+  void setExternalTensor(const ir::OperandIndex &ind,
+                         const std::shared_ptr<IPortableTensor> &tensor)
   {
     auto itr = _managed.find(ind);
     if (itr != _managed.end() && itr->second != nullptr && tensor != nullptr)

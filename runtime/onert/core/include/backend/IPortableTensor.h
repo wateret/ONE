@@ -30,15 +30,15 @@ public:
   virtual ~IPortableTensor() = default;
 
 public:
-  //virtual uint8_t *buffer() const = 0;
-  //virtual size_t total_size() const = 0;
-  //virtual size_t dimension(size_t index) const = 0;
-  //virtual size_t num_dimensions() const = 0;
-  //virtual size_t calcOffset(const ir::Coordinates &coords) const = 0;
-  //virtual ir::Layout layout() const = 0;
-  //virtual ir::DataType data_type() const = 0;
-  //virtual float data_scale() const = 0;
-  //virtual int32_t data_offset() const = 0;
+  // virtual uint8_t *buffer() const = 0;
+  // virtual size_t total_size() const = 0;
+  // virtual size_t dimension(size_t index) const = 0;
+  // virtual size_t num_dimensions() const = 0;
+  // virtual size_t calcOffset(const ir::Coordinates &coords) const = 0;
+  // virtual ir::Layout layout() const = 0;
+  // virtual ir::DataType data_type() const = 0;
+  // virtual float data_scale() const = 0;
+  // virtual int32_t data_offset() const = 0;
   bool has_padding() const final { return false; }
   void access(const std::function<void(ITensor &tensor)> &fn) final { fn(*this); }
 };
