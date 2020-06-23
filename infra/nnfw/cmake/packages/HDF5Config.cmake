@@ -50,4 +50,4 @@ if (NOT HDF5_FOUND)
 endif()
 
 # Append missing libaec which is required by libsz, which is required by libhdf5
-list(APPEND HDF5_CXX_LIBRARIES "aec")
+#list(APPEND HDF5_CXX_LIBRARIES "aec")

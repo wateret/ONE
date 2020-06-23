@@ -38,6 +38,10 @@ endmacro(nnas_include)
 #  nnfw_find_package(Boost QUIET): Load settings silently, without warnings
 #  nnfw_find_package(Boost REQUIRED): Load settings but stop with error when failed
 macro(nnfw_find_package PREFIX)
+  #message("***** NNFW_FIND_PACKAGE ${PREFIX} ${ARGN} /  ${CMAKE_SOURCE_DIR}/cmake/packages")
+  #message("PREFIX DIR : ${${PREFIX}_DIR}")
+  #unset(${PREFIX}_DIR CACHE)
+  #message("PREFIX DIR : ${${PREFIX}_DIR}")
   find_package(${PREFIX} CONFIG NO_DEFAULT_PATH
     PATHS ${CMAKE_SOURCE_DIR}/cmake/packages
     ${ARGN}
