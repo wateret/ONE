@@ -37,12 +37,6 @@ class IKernelGenerator : public ir::OperationVisitor
 public:
   virtual ~IKernelGenerator() = default;
 
-  std::unique_ptr<exec::IFunction> releaseFunction()
-  {
-    assert(_return_fn);
-    return std::move(_return_fn);
-  }
-
   std::unique_ptr<exec::FunctionSequence> generate(const ir::OpSequence &op_seq)
   {
     op_seq.accept(*this);
@@ -64,6 +58,13 @@ protected:
   }
 #include "ir/Operations.lst"
 #undef OP
+
+protected:
+  std::unique_ptr<exec::IFunction> releaseFunction()
+  {
+    assert(_return_fn);
+    return std::move(_return_fn);
+  }
 
 protected:
   std::unique_ptr<exec::IFunction> _return_fn;
