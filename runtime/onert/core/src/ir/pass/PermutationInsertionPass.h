@@ -29,6 +29,14 @@ namespace ir
 namespace pass
 {
 
+/**
+ * @brief Class that inserts Permute operation between PermutFactor boundaries
+ *
+ * For each operand, if there are Use \c PermuteFactor (backend and layout)s that are not the same
+ * with Def \c PermuteFactor, a Permute(copy) operation should be inserted to keep the model
+ * semantics of the \c LoweredGraph .
+ *
+ */
 class PermutationInsertionPass : public LoweredOperandPass
 {
 public:
