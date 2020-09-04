@@ -183,6 +183,13 @@ uint32_t CircleGen::addOperatorWhile(const OperatorParams &params, uint32_t cond
                                 circle::BuiltinOptions_WhileOptions, options);
 }
 
+uint32_t CircleGen::addOperatorIf(const OperatorParams &params, uint32_t cond_subg, uint32_t body_subg)
+{
+  auto options = circle::CreateWhileOptions(_fbb, cond_subg, body_subg).Union();
+  return addOperatorWithOptions(params, circle::BuiltinOperator_IF,
+                                circle::BuiltinOptions_IfOptions, options);
+}
+
 // NOTE Please add addOperator functions ABOVE this lie
 //
 // %  How to add a new addOperatorXXX fuction
