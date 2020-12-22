@@ -39,19 +39,17 @@ public:
 
   std::shared_ptr<IConfig> config() const override { return _config; }
 
-  std::unique_ptr<onert::backend::BackendContext>
-  newContext(const ir::Graph &graph, const std::shared_ptr<custom::IKernelBuilder> &kb,
-             bool) const override
+  std::unique_ptr<onert::backend::BackendContext> newContext(ContextData &&data) const override
   {
-    const auto &operands = graph.operands();
-    const auto &operations = graph.operations();
-    auto context = std::make_unique<BackendContext>(this, &graph);
+    const auto &operands = data.graph->operands();
+    const auto &operations = data.graph->operations();
+    auto context = std::make_unique<BackendContext>(this, std::move(data.graph));
     auto tr = std::make_shared<cpu_common::TensorRegistry>();
     auto tb = std::make_shared<TensorBuilder>(tr);
     context->tensor_registry = tr;
     context->tensor_builder = tb;
-    context->kernel_gen = std::make_shared<KernelGenerator>(operands, operations, tb, tr, kb,
-                                                            context->external_context());
+    context->kernel_gen = std::make_shared<KernelGenerator>(
+      operands, operations, tb, tr, data.custom_kernel_builder, context->external_context());
     return context;
   }
 
