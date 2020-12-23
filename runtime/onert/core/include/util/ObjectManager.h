@@ -24,6 +24,8 @@
 
 #include <memory>
 
+#include "util/logging.h"
+
 namespace onert
 {
 namespace util
@@ -67,7 +69,10 @@ public:
   {
     auto gen_index = tryIndex(index);
     if (gen_index.valid())
+    {
       _objects.emplace(gen_index, std::move(object));
+      VERBOSE(XXXXXX) << _objects.size() << std::endl;
+    }
     return gen_index;
   }
   /**

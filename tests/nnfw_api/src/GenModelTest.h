@@ -224,17 +224,18 @@ public:
 #ifdef TEST_ACL_BACKEND
       if (backend == "acl_cl" || backend == "acl_neon")
       {
-        _backends.push_back(backend);
+        //        _backends.push_back(backend);
       }
 #endif
-      if (backend == "cpu" || backend == "ruy")
+      //      if (backend == "cpu" || backend == "ruy")
+      if (backend == "cpu")
       {
         _backends.push_back(backend);
       }
 #ifdef TEST_XNNPACK_BACKEND
       if (backend == "xnnpack")
       {
-        _backends.push_back(backend);
+        //        _backends.push_back(backend);
       }
 #endif
     }

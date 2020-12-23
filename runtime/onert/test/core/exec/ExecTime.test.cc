@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#if 0
+
 #include "exec/ExecTime.h"
 #include "backend/IConfig.h"
 #include "backend/Backend.h"
@@ -103,3 +105,5 @@ TEST(ExecTime, structure)
   EXPECT_EQ(remove("exec_time.json"), 0);
 }
 } // unnamed namespace
+
+#endif

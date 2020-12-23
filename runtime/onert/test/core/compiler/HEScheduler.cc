@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#if 0
+
 #include <compiler/HEScheduler.h>
 #include <exec/ExecTime.h>
 
@@ -76,9 +78,9 @@ struct MockBackendGPU : public Backend
 {
   std::shared_ptr<IConfig> config() const override { return std::make_shared<MockConfigGPU>(); }
   std::unique_ptr<BackendContext>
-  newContext(const Graph &, const std::shared_ptr<custom::IKernelBuilder> &, bool) const override
+  newContext(ContextData &&data) const override
   {
-    return std::unique_ptr<BackendContext>(new BackendContext{this, nullptr});
+    return std::unique_ptr<BackendContext>(new BackendContext{this, std::move(data), nullptr});
   }
 };
 
@@ -99,9 +101,9 @@ struct MockBackendNPU : public Backend
 {
   std::shared_ptr<IConfig> config() const override { return std::make_shared<MockConfigNPU>(); }
   std::unique_ptr<BackendContext>
-  newContext(const Graph &, const std::shared_ptr<custom::IKernelBuilder> &, bool) const override
+  newContext(ContextData &&data) const override
   {
-    return std::unique_ptr<BackendContext>(new BackendContext{this, nullptr});
+    return std::unique_ptr<BackendContext>(new BackendContext{this, std::move(data), nullptr});
   }
 };
 
@@ -566,3 +568,5 @@ TEST_F(HESchedulerTest, branched_graph_profiling_mode)
 // TODO: Add tests with unknown execution and permutation time
 
 } // unnamed namespace
+
+#endif

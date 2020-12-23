@@ -18,6 +18,7 @@
 
 #include <deque>
 #include <functional>
+#include "ir/OperationCloner.h"
 #include "exec/ExecutionObservers.h"
 #include "exec/LinearExecutor.h"
 #include "exec/DataflowExecutor.h"
@@ -96,31 +97,83 @@ void initializeSubgraphIOTensors(compiler::LoweredGraph &lowered_graph,
   }
 }
 
-backend::BackendContexts createBackendContexts(const ir::Graph &graph,
-                                               const compiler::CompilerOptions &options)
+backend::BackendContexts createBackendContexts(
+  const compiler::LoweredGraph &lgraph,
+  const compiler::CompilerOptions &options) // TODO do not get the whole option as param
 {
   backend::BackendContexts contexts;
-  bool linear_executor = (options.executor == "Linear");
   auto &backend_manager = compiler::BackendManager::get();
 
-  // Always create Builtin backend context
-  auto builtin_backend = backend_manager.getBuiltin();
-  contexts.emplace(builtin_backend,
-                   builtin_backend->newContext(graph, graph.getKernelBuilder(), linear_executor));
+  std::unordered_map<const backend::Backend *, backend::ContextData> context_data_map;
 
-  // Create contexts for other backends
-  for (auto backend_str : options.backend_list)
+  for (auto backend : backend_manager.getAll())
   {
-    auto backend = backend_manager.get(backend_str);
-    if (!backend)
-    {
-      VERBOSE_F() << "Failed to create a context - backend '" << backend_str << "' was not loaded."
-                  << std::endl;
-      continue;
-    }
+    auto &data = context_data_map[backend];
+    auto graph = std::make_unique<ir::Graph>();
+    graph->setLayout(lgraph.graph().layout());
+    data.graph = std::move(graph);
+    VERBOSE_F() << "LGRAPH " << data.graph.get() << std::endl;
+    data.is_linear_executor = (options.executor == "Linear");
+    // data.custom_kernel_builder =
+  }
 
-    contexts.emplace(backend,
-                     backend->newContext(graph, graph.getKernelBuilder(), linear_executor));
+  // Generate partial graphs for each backend
+  ir::OperationCloner op_cloner;
+  auto &whole_graph = lgraph.graph();
+  whole_graph.operations().iterate(
+    [&](const ir::OperationIndex &op_ind, const ir::Operation &operation) {
+      auto &op_li = lgraph.lower_info().operation;
+      auto &operand_li = lgraph.lower_info().operand;
+      auto backend = op_li.at(op_ind).backend();
+      auto &partial_graph = *context_data_map[backend].graph;
+      auto &external_operands = context_data_map[backend].external_operands;
+
+      {
+        auto io_list = (operation.getInputs() + operation.getOutputs()) | ir::Remove::DUPLICATED |
+                       ir::Remove::UNDEFINED;
+        for (auto operand_ind : io_list)
+        {
+          const auto &operand = whole_graph.operands().at(operand_ind);
+          auto new_operand_ind =
+            partial_graph.addOperand(operand_ind, std::make_unique<ir::Operand>(operand));
+          VERBOSE(XXXXXXXXXXXXXXXXXXXXX) << new_operand_ind << std::endl;
+          assert(!new_operand_ind.valid() || new_operand_ind == operand_ind);
+          // If it failed, it means that the operand was added already
+          if (new_operand_ind.valid())
+          {
+            const auto &permute_factor = operand_li.at(operand_ind).def_factors().getOnlyElement();
+            if (permute_factor.backend() != backend)
+            {
+              VERBOSE(BuildBackendGraph) << "backend:" << backend->config()->id()
+                                         << " Added External Operand " << operand_ind << std::endl;
+              external_operands.add(operand_ind);
+            }
+            // XXX How to handle inputs/outputs? do we need them for partial graphs?
+            if (whole_graph.getInputs().contains(operand_ind))
+              partial_graph.addInput(operand_ind);
+            if (whole_graph.getOutputs().contains(operand_ind))
+              partial_graph.addOutput(operand_ind);
+            VERBOSE(BuildBackendGraph) << "backend:" << backend->config()->id()
+                                       << " Adding Operand " << operand_ind << std::endl;
+          }
+        }
+
+        operation.accept(op_cloner);
+        auto new_op_ind = partial_graph.addOperation(op_ind, op_cloner.releaseClone());
+        // XXX Is there a case that new_op_ind is not valid?
+        assert(new_op_ind == op_ind);
+        VERBOSE(BuildBackendGraph) << "backend:" << backend->config()->id() << " Added Operation "
+                                   << new_op_ind << std::endl;
+      }
+    });
+
+  // Create contexts
+  for (auto &pair : context_data_map)
+  {
+    auto backend = pair.first;
+    auto &data = pair.second;
+    // data.graph->finishBuilding();
+    contexts.emplace(backend, backend->newContext(std::move(data)));
   }
   return contexts;
 }
@@ -155,41 +208,6 @@ exec::IExecutor *ExecutorFactory::create(std::unique_ptr<compiler::LoweredGraph>
   return _map.at(options.executor)(std::move(lowered_graph), options, executor_map);
 }
 
-void ExecutorFactory::initializeBackendContext(compiler::LoweredGraph *lowered_graph,
-                                               const backend::BackendContexts &backend_contexts)
-{
-  struct Entry
-  {
-    std::vector<backend::BackendContext::OperationInfo> operation_list;
-    std::vector<ir::OperandIndex> operand_list;
-  };
-  std::unordered_map<const backend::Backend *, Entry> backend_assets;
-
-  lowered_graph->graph().operations().iterate(
-    [&](const ir::OperationIndex &op_ind, const ir::Operation &) {
-      auto &op_li = lowered_graph->lower_info().operation;
-      auto backend = op_li.getRawPtr(op_ind)->backend();
-      backend_assets[backend].operation_list.emplace_back(op_ind, lowered_graph->graph().layout());
-    });
-
-  // Build lists for operands
-  lowered_graph->graph().operands().iterate([&](const ir::OperandIndex &ind, const ir::Operand &) {
-    const auto lower_info = lowered_graph->lower_info().operand.getRawPtr(ind);
-    for (auto factor : lower_info->def_factors())
-    {
-      auto backend = factor.backend();
-      backend_assets[backend].operand_list.emplace_back(ind);
-    }
-  });
-
-  for (auto &pair : backend_assets)
-  {
-    auto backend = pair.first;
-    auto &arg = pair.second;
-    backend_contexts.at(backend)->initialize(arg.operation_list, arg.operand_list);
-  }
-}
-
 void ExecutorFactory::prepareMigrantTensors(compiler::LoweredGraph &lowered_graph,
                                             const backend::BackendContexts &backend_contexts)
 {
@@ -222,9 +240,7 @@ ExecutorFactory::createLinearExecutor(std::unique_ptr<compiler::LoweredGraph> lo
                                       const compiler::CompilerOptions &options,
                                       const std::shared_ptr<exec::ExecutorMap> &executor_map)
 {
-  backend::BackendContexts backend_contexts =
-    createBackendContexts(lowered_graph->graph(), options);
-  initializeBackendContext(lowered_graph.get(), backend_contexts);
+  backend::BackendContexts backend_contexts = createBackendContexts(*lowered_graph, options);
 
   TensorRegistries tensor_regs{backend_contexts, true};
 
@@ -241,7 +257,7 @@ ExecutorFactory::createLinearExecutor(std::unique_ptr<compiler::LoweredGraph> lo
 
   for (auto &pair : backend_contexts)
   {
-    pair.second->genTensors(order, lowered_graph->lower_info());
+    pair.second->genTensors(order);
   }
 
   prepareMigrantTensors(*lowered_graph, backend_contexts);
@@ -310,10 +326,7 @@ exec::IExecutor *ExecutorFactory::createDataflowExecutor(
   std::unique_ptr<compiler::LoweredGraph> lowered_graph, const compiler::CompilerOptions &options,
   const std::shared_ptr<exec::ExecutorMap> &executor_map, bool parallel)
 {
-  backend::BackendContexts backend_contexts =
-    createBackendContexts(lowered_graph->graph(), options);
-
-  initializeBackendContext(lowered_graph.get(), backend_contexts);
+  backend::BackendContexts backend_contexts = createBackendContexts(*lowered_graph, options);
 
   TensorRegistries tensor_regs{backend_contexts, true};
 
@@ -330,7 +343,7 @@ exec::IExecutor *ExecutorFactory::createDataflowExecutor(
   auto order = Linear::linearize(*lowered_graph);
   for (auto &pair : backend_contexts)
   {
-    pair.second->genTensors(order, lowered_graph->lower_info());
+    pair.second->genTensors(order);
   }
 
   prepareMigrantTensors(*lowered_graph, backend_contexts);

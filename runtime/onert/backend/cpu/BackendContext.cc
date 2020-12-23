@@ -31,10 +31,10 @@ namespace backend
 namespace cpu
 {
 
-ITensorRegistry *BackendContext::genTensors(const std::vector<onert::ir::OperationIndex> &order,
-                                            const compiler::GraphLowerInfo &lower_info)
+ITensorRegistry *BackendContext::genTensors(const std::vector<onert::ir::OperationIndex> &order)
 {
-  return cpu_common::genTensors(*this, order, lower_info);
+  VERBOSE_F() << "CPU GEN TENSORS" << std::endl;
+  return cpu_common::genTensors(*this, order);
 }
 
 FunctionMap BackendContext::genKernels(const std::vector<onert::ir::OperationIndex> &order)
@@ -43,11 +43,8 @@ FunctionMap BackendContext::genKernels(const std::vector<onert::ir::OperationInd
 
   for (auto op_ind : order)
   {
-    // Skip if operation is not assigned to the backend
-    auto &ops = operation_list();
-    bool assigned = std::any_of(ops.begin(), ops.end(),
-                                [&](const OperationInfo &info) { return info.index == op_ind; });
-    if (!assigned)
+    // TODO Do not check if it exists, the caller must give order of operations that are present
+    if (!graph()->operations().exist(op_ind))
       continue;
     auto fn_seq = kernel_gen->generate(op_ind);
     ret.emplace_back(op_ind, std::move(fn_seq));
@@ -56,12 +53,9 @@ FunctionMap BackendContext::genKernels(const std::vector<onert::ir::OperationInd
   cpu_common::initConsts(*this);
 
   // NOTE For memory optimization, we want to free some operand data
-  for (auto ind : operand_list())
-  {
-    // TODO Remove const_cast
-    auto &obj = const_cast<ir::Graph *>(graph())->operands().at(ind);
-    obj.releaseData();
-  }
+  const_cast<ir::Graph &>(*_data.graph)
+    .operands()
+    .iterate([&](const ir::OperandIndex &, ir::Operand &obj) { obj.releaseData(); });
 
   for (auto &it : ret)
   {
