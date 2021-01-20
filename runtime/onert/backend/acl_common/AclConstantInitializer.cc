@@ -137,6 +137,8 @@ void AclConstantInitializer::registerCopyInitializer(const ir::OperandIndex &ind
   if (!obj.isConstant())
     return;
 
+  VERBOSE() << "REG COPY INIT INDEX " << index << std::endl;
+
   const auto type = obj.typeInfo().type();
   using ir::DataType;
 
@@ -182,6 +184,8 @@ void AclConstantInitializer::registerPermuteInitializer(const ir::OperandIndex &
   const auto type = obj.typeInfo().type();
   using ir::DataType;
   using namespace std::placeholders;
+
+  VERBOSE() << "REG PERM INIT INDEX " << index << std::endl;
 
   switch (type)
   {
